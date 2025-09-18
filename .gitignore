@@ -1,1 +1,4 @@
-/original_roms/Donkey Kong (Japan) (En).nes
+/original_roms/*.nes
+/DKGFX.bin
+/DonkeyKongDisassembly.nes
+/misc/DonkeyKong.nes
