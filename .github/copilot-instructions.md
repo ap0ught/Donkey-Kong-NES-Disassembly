@@ -150,6 +150,9 @@ The repository has automated builds for all three versions via GitHub Actions. W
 - [README.md](../README.md) - User documentation
 - [README.dev](../README.dev) - Developer documentation
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - Architecture overview
+- [PROJECT_STATUS.md](../PROJECT_STATUS.md) - Current project status
+- [GRAPHICS_WORKFLOW.md](../GRAPHICS_WORKFLOW.md) - Graphics editing guide
 - [Notes.txt](../Notes.txt) - Detailed label conventions and terminology
 - [NESdev Wiki](https://wiki.nesdev.com/) - NES hardware documentation
 - [6502 Reference](http://www.6502.org/tutorials/) - CPU instruction set

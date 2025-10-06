@@ -41,8 +41,12 @@ This disassembly is fully complete but documentation is still in progress.
 
 ## Documentation
 
-- See [README.dev](README.dev) for development documentation
-- See [Notes.txt](Notes.txt) for labeling conventions and terminology
+- [README.dev](README.dev) - Development documentation and build instructions
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines and workflow
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and design
+- [PROJECT_STATUS.md](PROJECT_STATUS.md) - Current project status and roadmap
+- [GRAPHICS_WORKFLOW.md](GRAPHICS_WORKFLOW.md) - Graphics extraction and editing guide
+- [Notes.txt](Notes.txt) - Labeling conventions and terminology
 
 ## Graphics Data
 
