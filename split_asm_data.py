@@ -11,12 +11,16 @@ Usage:
   python split_asm_data.py DonkeyKongDisassembly.asm out/DonkeyKongDisassembly.split.asm --data-dir src/data --min-lines 6 --dry-run
   python split_asm_data.py DonkeyKongDisassembly.asm DonkeyKongDisassembly.asm --data-dir src/data --verify
 
+Requirements:
+  Python 3.6.8 or later (uses pathlib, subprocess features, and f-strings in some error messages)
+
 Safeguards:
 - Verifies original file assembles successfully before splitting
 - Verifies split result assembles to identical binary
 - The transform is textual: assembled bytes should be identical
 - Preserves ASM6-specific syntax and formatting
 """
+
 import argparse
 import hashlib
 import pathlib
@@ -25,7 +29,17 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import List, Tuple, Optional
+
+# Check Python version
+if sys.version_info < (3, 6, 8):
+    print("ERROR: This script requires Python 3.6.8 or later")
+    print(
+        "Current version: {}.{}.{}".format(
+            sys.version_info.major, sys.version_info.minor, sys.version_info.micro
+        )
+    )
+    print("Please upgrade your Python installation or use a newer version")
+    sys.exit(1)
 
 # ASM6-specific data tokens (case-insensitive)
 DATA_TOKENS = {
@@ -128,7 +142,20 @@ ASSIGNMENT_RE = re.compile(r"^\s*([A-Za-z_][\w]*)\s*[=]\s*(.+?)(?:\s*;.*)?$")
 CONDITIONAL_RE = re.compile(r"^\s*(if|ifdef|ifndef|else|elseif|endif)\b", re.IGNORECASE)
 
 
-def find_assembler() -> Optional[str]:
+def _supports_unicode() -> bool:
+    enc = sys.stdout.encoding or ""
+    try:
+        "✓".encode(enc, errors="strict")
+        return True
+    except Exception:
+        return False
+
+
+_OK = "✓" if _supports_unicode() else "OK"
+_FAIL = "✗" if _supports_unicode() else "FAIL"
+
+
+def find_assembler():
     """Find asm6f or asm6 assembler in PATH or common locations."""
     assemblers = ["asm6f", "asm6", "asm6f.exe", "asm6.exe"]
 
@@ -148,12 +175,7 @@ def find_assembler() -> Optional[str]:
     return None
 
 
-def run_assembler(
-    asm_path: str,
-    input_file: pathlib.Path,
-    output_file: pathlib.Path,
-    verbose: bool = False,
-) -> Tuple[bool, str, str]:
+def run_assembler(asm_path, input_file, output_file, verbose=False):
     """
     Run the assembler on the input file.
     Returns (success, stdout, stderr)
@@ -161,10 +183,16 @@ def run_assembler(
     try:
         cmd = [asm_path, str(input_file), str(output_file)]
         if verbose:
-            print(f"Running: {' '.join(cmd)}")
+            print("Running: {} (cwd={})".format(" ".join(cmd), input_file.parent))
 
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=30  # 30 second timeout
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,  # 30 second timeout
+            cwd=str(
+                pathlib.Path(input_file).parent
+            ),  # <— NEW: resolve includes correctly
         )
 
         return result.returncode == 0, result.stdout, result.stderr
@@ -172,10 +200,10 @@ def run_assembler(
     except subprocess.TimeoutExpired:
         return False, "", "Assembly process timed out"
     except Exception as e:
-        return False, "", f"Error running assembler: {e}"
+        return False, "", "Error running assembler: {}".format(e)
 
 
-def get_file_hash(filepath: pathlib.Path) -> str:
+def get_file_hash(filepath):
     """Get SHA256 hash of a file."""
     if not filepath.exists():
         return ""
@@ -187,35 +215,34 @@ def get_file_hash(filepath: pathlib.Path) -> str:
     return sha256_hash.hexdigest()
 
 
-def verify_assembly(
-    asm_path: str, input_file: pathlib.Path, description: str, verbose: bool = False
-) -> Tuple[bool, Optional[str]]:
+def verify_assembly(asm_path, input_file, description, verbose=False):
     """
     Verify that an assembly file can be assembled successfully.
     Returns (success, output_hash) where output_hash is None if assembly failed.
     """
-    with tempfile.NamedTemporaryFile(suffix=".nes", delete=False) as temp_output:
-        temp_output_path = pathlib.Path(temp_output.name)
+    temp_output = tempfile.NamedTemporaryFile(suffix=".nes", delete=False)
+    temp_output_path = pathlib.Path(temp_output.name)
+    temp_output.close()
 
     try:
-        print(f"Verifying {description}...", end="")
+        print("Verifying {}...".format(description), end="")
         success, stdout, stderr = run_assembler(
             asm_path, input_file, temp_output_path, verbose
         )
 
         if success:
             output_hash = get_file_hash(temp_output_path)
-            print(" ✓")
+            print(f" {_OK}")
             if verbose and stdout:
-                print(f"  Assembler output: {stdout}")
+                print("  Assembler output: {}".format(stdout))
             return True, output_hash
         else:
-            print(" ✗")
-            print(f"  Assembly failed for {description}")
+            print(f" {_FAIL}")
+            print("  Assembly failed for {}".format(description))
             if stderr:
-                print(f"  Error: {stderr}")
+                print("  Error: {}".format(stderr))
             if stdout:
-                print(f"  Output: {stdout}")
+                print("  Output: {}".format(stdout))
             return False, None
 
     finally:
@@ -224,7 +251,7 @@ def verify_assembly(
             temp_output_path.unlink()
 
 
-def is_data_line(line: str) -> bool:
+def is_data_line(line):
     """Check if line contains data definition tokens."""
     line_clean = line.strip()
     if not line_clean or line_clean.startswith(";"):
@@ -238,27 +265,27 @@ def is_data_line(line: str) -> bool:
     return tok in DATA_TOKENS
 
 
-def is_label_only(line: str) -> bool:
+def is_label_only(line):
     """Check if line is label-only (no instruction)."""
     return bool(LABEL_ONLY_RE.match(line))
 
 
-def is_comment_or_blank(line: str) -> bool:
+def is_comment_or_blank(line):
     """Check if line is comment or blank."""
     return bool(COMMENT_OR_BLANK_RE.match(line))
 
 
-def is_assignment(line: str) -> bool:
+def is_assignment(line):
     """Check if line is a variable assignment (ASM6 style)."""
     return bool(ASSIGNMENT_RE.match(line))
 
 
-def is_conditional_directive(line: str) -> bool:
+def is_conditional_directive(line):
     """Check if line is a conditional assembly directive."""
     return bool(CONDITIONAL_RE.match(line))
 
 
-def is_assembler_directive(line: str) -> bool:
+def is_assembler_directive(line):
     """Check if line contains assembler directives that shouldn't be in data blocks."""
     line_clean = line.strip().lower()
     if not line_clean or line_clean.startswith(";"):
@@ -282,7 +309,7 @@ def is_assembler_directive(line: str) -> bool:
     return first_word in ASM_DIR_CMDS
 
 
-def is_block_line(line: str) -> bool:
+def is_block_line(line):
     """Check if line can be part of a data block."""
     return (
         is_data_line(line)
@@ -292,12 +319,12 @@ def is_block_line(line: str) -> bool:
     )
 
 
-def should_break_block(line: str) -> bool:
+def should_break_block(line):
     """Check if line should break a data block."""
     return is_assembler_directive(line) or is_conditional_directive(line)
 
 
-def sanitize_name(s: str) -> str:
+def sanitize_name(s):
     """Sanitize filename, preserving ASM6 naming conventions."""
     if not s:
         return "block"
@@ -315,7 +342,7 @@ def sanitize_name(s: str) -> str:
     return s or "block"
 
 
-def detect_first_label(lines: List[str], start: int, end: int) -> Optional[str]:
+def detect_first_label(lines, start, end):
     """Extract the first meaningful label from a block."""
     # Check the start line for labels
     m = LABEL_ONLY_RE.match(lines[start])
@@ -344,12 +371,12 @@ def detect_first_label(lines: List[str], start: int, end: int) -> Optional[str]:
     return None
 
 
-def hash_block(text: str) -> str:
+def hash_block(text):
     """Generate short hash for block content."""
     return hashlib.sha1(text.encode("utf-8", errors="ignore")).hexdigest()[:8]
 
 
-def count_actual_data_lines(lines: List[str], start: int, end: int) -> int:
+def count_actual_data_lines(lines, start, end):
     """Count actual data lines (excluding comments and blanks)."""
     count = 0
     for i in range(start, end):
@@ -358,7 +385,7 @@ def count_actual_data_lines(lines: List[str], start: int, end: int) -> int:
     return count
 
 
-def validate_block(lines: List[str], start: int, end: int) -> bool:
+def validate_block(lines, start, end):
     """Validate that block is suitable for extraction."""
     # Must contain at least one actual data line
     has_data = False
@@ -380,8 +407,43 @@ def validate_block(lines: List[str], start: int, end: int) -> bool:
     return True
 
 
-def find_data_blocks(lines: List[str], min_lines: int) -> List[Tuple[int, int]]:
-    """Find all suitable data blocks in the source."""
+# Drop-in patch snippets for split_asm_data.py
+# Fix: avoid capturing trailing label-only lines (e.g., CODE_FB75:) at the end of data blocks,
+# while still allowing labels *inside* a data block when they are immediately followed by data.
+
+# --- Add these helpers near the other predicate helpers ---
+
+
+def next_significant_index(lines: list[str], idx: int) -> int:
+    """Return index of next non-blank/non-comment line after idx, or len(lines) if none."""
+    n = len(lines)
+    k = idx + 1
+    while k < n and is_comment_or_blank(lines[k]):
+        k += 1
+    return k
+
+
+def next_significant_is_data(lines: list[str], idx: int) -> bool:
+    """Return True if the next significant line after idx looks like data/assignment."""
+    k = next_significant_index(lines, idx)
+    if k >= len(lines):
+        return False
+    return is_data_line(lines[k]) or is_assignment(lines[k])
+
+
+# --- Replace your find_data_blocks(...) with the version below ---
+
+
+def find_data_blocks(lines, min_lines):
+    """Find all suitable data blocks in the source.
+
+    Heuristics:
+    - Start a block only at a data line (db/dw/hex/fill/incbin/etc.).
+    - Permit label-only lines *inside* the block only when they are immediately followed by data.
+      If a label-only line is followed by non-data (typically code), treat it as the start of the next section
+      and do not include it in the data block.
+    - Trim any trailing label-only or comment lines that accidentally slip through, as an extra safeguard.
+    """
     i, n = 0, len(lines)
     blocks = []
 
@@ -389,21 +451,43 @@ def find_data_blocks(lines: List[str], min_lines: int) -> List[Tuple[int, int]]:
         line = lines[i]
 
         if is_data_line(line):
-            # Start of potential data block
             start = i
             j = i
 
-            # Expand forward while we have block-compatible lines
-            while (
-                j < n and is_block_line(lines[j]) and not should_break_block(lines[j])
-            ):
-                j += 1
+            while j < n:
+                cur = lines[j]
+
+                # Hard break on assembler directives / conditionals
+                if should_break_block(cur):
+                    break
+
+                # Allow block-compatible lines, with special rules for label-only lines
+                if is_label_only(cur):
+                    # Keep label only if followed by data/assignment; otherwise it's the start of next section
+                    if next_significant_is_data(lines, j):
+                        j += 1
+                        continue
+                    else:
+                        break  # do not consume this label; let the next pass handle it
+
+                if is_block_line(cur):
+                    j += 1
+                    continue
+
+                # Unknown line type: stop block
+                break
 
             end = j
+
+            # Trim trailing label-only or comment/blank lines from the block, if any
+            while end > start and (
+                is_comment_or_blank(lines[end - 1]) or is_label_only(lines[end - 1])
+            ):
+                end -= 1
+
             block_len = end - start
             actual_data_lines = count_actual_data_lines(lines, start, end)
 
-            # Apply filters
             if (
                 block_len >= min_lines
                 and actual_data_lines >= max(1, min_lines // 2)
@@ -411,32 +495,81 @@ def find_data_blocks(lines: List[str], min_lines: int) -> List[Tuple[int, int]]:
             ):
                 blocks.append((start, end))
 
-            i = end
+            i = max(end, i + 1)
         else:
             i += 1
 
     return blocks
 
 
-def generate_include_line(relpath: pathlib.Path, use_quotes: bool = True) -> str:
-    """Generate ASM6-compatible include line."""
-    path_str = relpath.as_posix()
-    if use_quotes:
-        return f'incsrc "{path_str}"'
-    else:
-        return f"incsrc {path_str}"
+from pathlib import Path
 
 
-def backup_file(filepath: pathlib.Path) -> pathlib.Path:
+def generate_include_line(target_path: Path, base_dir: Path) -> str:
+    """Generate ASM6-compatible incsrc line using a path *relative to base_dir*.
+    base_dir should be the directory of the main ASM file being written (i.e., out.parent).
+    """
+    try:
+        rel = Path(target_path).resolve().relative_to(Path(base_dir).resolve())
+    except Exception:
+        # Fallback if different drives on Windows: use os.path.relpath-style behavior
+        try:
+            rel = Path(pathlib.PurePath(*(Path(target_path).parts)))
+        except Exception:
+            rel = Path(target_path)
+    path_str = rel.as_posix()
+    return f'incsrc "{path_str}"'
+
+
+def backup_file(filepath):
     """Create backup of original file."""
     backup_path = filepath.with_suffix(filepath.suffix + ".backup")
     counter = 1
     while backup_path.exists():
-        backup_path = filepath.with_suffix(f"{filepath.suffix}.backup{counter}")
+        backup_path = filepath.with_suffix(
+            "{}.backup{}".format(filepath.suffix, counter)
+        )
         counter += 1
 
     backup_path.write_bytes(filepath.read_bytes())
     return backup_path
+
+
+def route_relpath(base_dir: pathlib.Path, base_name: str) -> pathlib.Path:
+    low = base_name.lower()
+
+    if "music" in low or "fanfare" in low or "channel" in low:
+        return base_dir / "music" / base_name
+    if "layout" in low or "phase" in low:
+        return base_dir / "layouts" / base_name
+
+    return base_dir / base_name
+
+
+def coalesce_small_blocks(lines, blocks, max_total=40, gap_limit=3):
+    """Merge adjacent small blocks when separated only by <= gap_limit lines
+    of comments/blank lines, and total merged size <= max_total.
+    Reduces tiny-file spam without changing assembled output.
+    """
+    if not blocks:
+        return blocks
+
+    merged = []
+    cur_s, cur_e = blocks[0]
+
+    def gap_ok(a_end, b_start):
+        gap = lines[a_end:b_start]
+        return all(is_comment_or_blank(x) for x in gap) and len(gap) <= gap_limit
+
+    for s, e in blocks[1:]:
+        if gap_ok(cur_e, s) and (e - cur_s) <= max_total:
+            cur_e = e  # extend current merged window
+        else:
+            merged.append((cur_s, cur_e))
+            cur_s, cur_e = s, e
+
+    merged.append((cur_s, cur_e))
+    return merged
 
 
 def main():
@@ -477,12 +610,20 @@ def main():
 
     args = ap.parse_args()
 
+    # Show Python version info if verbose
+    if args.verbose:
+        print(
+            "Python version: {}.{}.{}".format(
+                sys.version_info.major, sys.version_info.minor, sys.version_info.micro
+            )
+        )
+
     src = pathlib.Path(args.infile)
     out = pathlib.Path(args.outfile)
     data_dir = pathlib.Path(args.data_dir)
 
     if not src.exists():
-        print(f"Error: Input file '{src}' not found", file=sys.stderr)
+        print("Error: Input file '{}' not found".format(src), file=sys.stderr)
         return 1
 
     # Find assembler if verification is requested
@@ -498,13 +639,13 @@ def main():
             return 1
 
         if args.verbose:
-            print(f"Using assembler: {assembler}")
+            print("Using assembler: {}".format(assembler))
 
     # Read source file
     try:
         lines = src.read_text(encoding="utf-8", errors="ignore").splitlines()
     except Exception as e:
-        print(f"Error reading '{src}': {e}", file=sys.stderr)
+        print("Error reading '{}': {}".format(src, e), file=sys.stderr)
         return 1
 
     # Verify original assembly works (if verification enabled)
@@ -519,13 +660,14 @@ def main():
             )
             return 1
 
-    # Find data blocks
     blocks_info = find_data_blocks(lines, args.min_lines)
-
+    blocks_info = coalesce_small_blocks(lines, blocks_info, max_total=40, gap_limit=3)
     if not blocks_info:
         print("No suitable data blocks found.")
         if args.verbose:
-            print(f"Searched {len(lines)} lines with min_lines={args.min_lines}")
+            print(
+                "Searched {} lines with min_lines={}".format(len(lines), args.min_lines)
+            )
         return 0
 
     # Process blocks
@@ -537,13 +679,11 @@ def main():
 
         # Generate filename
         label = detect_first_label(lines, start, end)
-        base = sanitize_name(label or f"block_{start+1}")
+        base = sanitize_name(label or "block_{}".format(start + 1))
         hash_suffix = hash_block(block_text)
-        fname = f"{base}_{start+1:05d}_{hash_suffix}.asm"
-        relpath = data_dir / fname
-
-        # Generate include line
-        inc_line = generate_include_line(data_dir / fname)
+        fname = "{}_{}_{}.asm".format(base, str(start + 1).zfill(5), hash_suffix)
+        relpath = route_relpath(data_dir, fname)
+        inc_line = generate_include_line(relpath, base_dir=out.parent)
 
         edits.append((start, end, inc_line))
         blocks.append((relpath, block_text))
@@ -551,15 +691,16 @@ def main():
         if args.verbose:
             actual_lines = count_actual_data_lines(lines, start, end)
             print(
-                f"Block {len(blocks)}: lines {start+1}-{end}, "
-                f"{end-start} total/{actual_lines} data -> {fname}"
+                "Block {}: lines {}-{}, {} total/{} data -> {}".format(
+                    len(blocks), start + 1, end, end - start, actual_lines, fname
+                )
             )
 
     # Show summary
-    print(f"Found {len(blocks)} data block(s) to extract:")
+    print("Found {} data block(s) to extract:".format(len(blocks)))
     for i, (path, _) in enumerate(blocks):
         start, end, _ = edits[i]
-        print(f"  {path.name} (lines {start+1}-{end})")
+        print("  {} (lines {}-{})".format(path.name, start + 1, end))
 
     if args.dry_run:
         print("\n[DRY RUN] No files would be written.")
@@ -570,19 +711,21 @@ def main():
     # Create backup if requested and overwriting
     if args.backup and src == out and src.exists():
         backup_path = backup_file(src)
-        print(f"Created backup: {backup_path}")
+        print("Created backup: {}".format(backup_path))
 
     # Check for existing files
     if not args.force:
         existing = [p for p, _ in blocks if p.exists()]
         if existing:
             print(
-                f"Error: {len(existing)} data files already exist. Use --force to overwrite:"
+                "Error: {} data files already exist. Use --force to overwrite:".format(
+                    len(existing)
+                )
             )
             for p in existing[:5]:  # Show first 5
-                print(f"  {p}")
+                print("  {}".format(p))
             if len(existing) > 5:
-                print(f"  ... and {len(existing)-5} more")
+                print("  ... and {} more".format(len(existing) - 5))
             return 1
 
     # Create data directory
@@ -599,17 +742,17 @@ def main():
             relpath.parent.mkdir(parents=True, exist_ok=True)
             relpath.write_text(text, encoding="utf-8")
             if args.verbose:
-                print(f"Wrote: {relpath}")
+                print("Wrote: {}".format(relpath))
     except Exception as e:
-        print(f"Error writing data files: {e}", file=sys.stderr)
+        print("Error writing data files: {}".format(e), file=sys.stderr)
         return 1
 
     # Write main file
     try:
         out.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-        print(f"Wrote main file: {out}")
+        print("Wrote main file: {}".format(out))
     except Exception as e:
-        print(f"Error writing main file: {e}", file=sys.stderr)
+        print("Error writing main file: {}".format(e), file=sys.stderr)
         return 1
 
     # Verify split result assembles correctly
@@ -626,20 +769,20 @@ def main():
         if original_hash and split_hash:
             if original_hash == split_hash:
                 print(
-                    "✓ Verification passed: Split result assembles to identical binary"
+                    " Verification passed: Split result assembles to identical binary"
                 )
             else:
                 print(
                     "WARNING: Split result assembles successfully but produces different binary"
                 )
-                print(f"Original hash: {original_hash[:16]}...")
-                print(f"Split hash:    {split_hash[:16]}...")
+                print("Original hash: {}...".format(original_hash[:16]))
+                print("Split hash:    {}...".format(split_hash[:16]))
                 print("This may indicate a problem with the splitting logic.")
                 return 1
 
-    print(f"Successfully split {len(blocks)} data blocks.")
+    print("Successfully split {} data blocks.".format(len(blocks)))
     if assembler:
-        print(f"Manual verification: {assembler} {out} output.nes")
+        print("Manual verification: {} {} output.nes".format(assembler, out))
 
     return 0
 
