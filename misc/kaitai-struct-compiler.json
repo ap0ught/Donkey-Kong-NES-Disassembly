@@ -1,0 +1,15 @@
+{
+  "version": "0.11",
+  "description": "Kaitai Struct compiler (ksc)",
+  "homepage": "https://kaitai.io/",
+  "license": "GPL-3.0-or-later",
+  "url": "https://github.com/kaitai-io/kaitai_struct_compiler/releases/download/0.11/kaitai-struct-compiler-0.11.zip",
+  "hash": "ff89389d9dc9e770d78a24af328763cb1f8e7b31ce7766c9edf10669a060f2a2",
+  "extract_dir": "kaitai-struct-compiler-0.11",
+  "bin": [
+    ["bin\\kaitai-struct-compiler.bat", "kaitai-struct-compiler"],
+    ["bin\\kaitai-struct-compiler.bat", "ksc"]
+  ]
+}
+
+

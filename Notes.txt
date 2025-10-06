@@ -1,23 +1,150 @@
-Labels follow this format:
+# Donkey Kong NES Disassembly Documentation
 
+## Labeling Convention
+
+Labels follow this format:
 VERSION_TAG/NAME_ADDRESS
 (example: JP_LOOP_C000)
 
-Tags:
-CODE - marks a block of code
-DATA - marks a block of data
-UNUSED - marks an unused code or data
-LOOP - marks a set of instructions that are executed multiple times (in a loop)
-RETURN - marks a return from routine
+### Label Tags:
+- CODE - marks a block of code (executable instructions)
+- DATA - marks a block of data (tables, constants, graphics data)
+- UNUSED - marks unused code or data (dead code, padding)
+- LOOP - marks a set of instructions that are executed multiple times (in a loop)
+- RETURN - marks a return from routine
+- JUMP - marks jump targets and branch destinations
+- INIT - marks initialization routines
+- UPDATE - marks update/main loop routines
+- RENDER - marks rendering/graphics routines
+- SOUND - marks audio-related code
+- INPUT - marks controller input handling
+- COLLISION - marks collision detection routines
+- PHYSICS - marks movement and physics calculations
 
-there are also version-specific labels. Default labels refer to Revision 1/US version (yeah, their adresses aren't the same for others. can't really do much, add PC address for each line for each version? would've been cool with automated tool)
-JP - revision 0/japan only 
-Gamecube - gamecube only
+### Version-Specific Labels:
+Default labels refer to Revision 1/US version. Address locations may differ between versions.
+- JP - revision 0/Japan only release
+- US - revision 1/US release (default, no tag needed)
+- Gamecube - Gamecube Animal Crossing version
 
-There's no consistency in referring to revision 0 and 1. Sometimes i call them JP and US. Not sure which is correct. I might change it later.
-Also, I refer to player character who would become the world's most famous plumber as Jumpman, just for authencity. All references to Jumpman can be replaced with references to Mario.
+**Note:** There's no consistency in referring to revision 0 and 1. Sometimes called JP and US.
+This may be updated for consistency in future revisions.
 
-Terminology:
-Sprite Tiles - OAM tiles
-Sprite - an object, usually uses sprite tiles (donkey kong himself isn't a sprite for example, since he uses background tiles (exception: ending cutscene where he turns into a sprite when falling down))
-Square (sound) - Pulse wave (some documentations call it square, some pulse wave, but I already used former)
+## Terminology
+
+### Graphics:
+- **Sprite Tiles** - OAM tiles (8x8 pixel hardware sprites)
+- **Sprite** - A game object that typically uses sprite tiles for rendering
+  - Exception: Donkey Kong uses background tiles for most animations
+  - Exception: In ending cutscene, DK becomes a sprite when falling
+- **Background Tiles** - CHR data used for background rendering
+- **Metasprites** - Collections of hardware sprites forming larger objects
+- **Pattern Tables** - CHR ROM data containing tile graphics ($0000-$1FFF)
+
+### Audio:
+- **Square (sound)** - Pulse wave channel (APU channels 1 & 2)
+  - Some documentation calls it "square wave", others "pulse wave"
+  - We use "square" for consistency with existing codebase
+- **Triangle** - Triangle wave channel (APU channel 3)
+- **Noise** - Noise channel (APU channel 4)
+- **DMC** - Delta Modulation Channel (APU channel 5)
+
+### Characters:
+- **Jumpman** - The player character (later known as Mario)
+  - Used for authenticity to original 1981 release
+  - All references can be replaced with "Mario" if desired
+- **Pauline** - The character Jumpman must rescue
+- **Donkey Kong** - The main antagonist
+
+## Memory Layout
+
+### Zero Page ($00-$FF):
+- $00-$0F: Temporary variables and calculations
+- $10-$1F: Player state and position
+- $20-$2F: Enemy states and positions
+- $30-$3F: Game state variables
+- $40-$4F: Graphics and rendering variables
+- $50-$5F: Audio variables
+- $60-$6F: Input and controller state
+- $70-$7F: Collision detection variables
+- $80-$FF: Stack and temporary storage
+
+### RAM ($0200-$07FF):
+- $0200-$02FF: OAM (sprite) data
+- $0300-$03FF: Background update buffer
+- $0400-$04FF: Level data and tile maps
+- $0500-$05FF: Object arrays and lists
+- $0600-$06FF: Sound effect queues
+- $0700-$07FF: General purpose RAM
+
+## Code Organization
+
+### Main Game Loop:
+1. Input reading and processing
+2. Game logic updates
+3. Physics and collision detection
+4. Graphics rendering preparation
+5. Audio updates
+6. VBlank waiting and PPU updates
+
+### Subroutine Categories:
+- **Game State** - Level progression, game over, scoring
+- **Player Logic** - Movement, jumping, climbing, collision
+- **Enemy AI** - Barrel spawning, movement patterns, Kong animations
+- **Graphics** - Sprite positioning, background updates, scrolling
+- **Audio** - Music playback, sound effects, APU register updates
+- **Utility** - Math routines, random numbers, data decompression
+
+## Technical Notes
+
+### NES Hardware Limitations:
+- 8 sprites per scanline maximum
+- 64 total hardware sprites (OAM entries)
+- 4KB CHR ROM for graphics data
+- 16KB PRG ROM for code (32KB on Gamecube version)
+- No IRQ usage - relies on VBlank timing
+
+### Performance Optimizations:
+- Unrolled loops for time-critical sections
+- Lookup tables for math calculations
+- Minimal branching in hot code paths
+- Efficient sprite multiplexing for flicker reduction
+
+### Assembly Conventions:
+- Hexadecimal values prefixed with $
+- Binary values prefixed with %
+- Decimal values have no prefix
+- Comments use ; for single line, /* */ for blocks
+- Indentation: 2 spaces for instructions, 4 for nested blocks
+
+## File Structure
+
+### Source Files:
+- `DonkeyKong.asm` - Main assembly file
+- `iNES_Header.asm` - ROM header definition
+- `JPRemap.asm` - Version-specific macros
+- `Constants.asm` - Memory addresses and constants
+- `Macros.asm` - Reusable code macros
+
+### Data Files:
+- Level layouts and tile arrangements
+- Sprite animation sequences
+- Music and sound effect data
+- Text strings and character maps
+
+## Debugging Information
+
+When adding new labels or modifying existing ones:
+1. Verify addresses across all versions
+2. Update cross-references in comments
+3. Test assembly without errors
+4. Document any version-specific behavior
+5. Add to symbol table for debugger use
+
+## Future Improvements
+
+- Standardize version naming (JP vs Revision 0)
+- Add automated address verification across versions
+- Create symbol files for popular NES debuggers
+- Document remaining unknown/unused code sections
+- Add timing analysis for performance-critical routines

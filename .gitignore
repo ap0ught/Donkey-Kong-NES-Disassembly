@@ -24,3 +24,9 @@ misc/*.bin
 # Temporary files
 *.tmp
 *.bak
+/original_roms/*.nes
+/DKGFX.bin
+/DonkeyKongDisassembly.nes
+/misc/DonkeyKong.nes
+/donkey_after.nes
+/donkey_before.nes

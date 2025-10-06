@@ -1,0 +1,10 @@
+{
+  "version": "1.6_f03_20250127",
+  "description": "A fork of loopy's ASM6, a 6502 assembler",
+  "homepage": "https://github.com/freem/asm6f",
+  "license": "Zlib",
+  "url": "https://github.com/freem/asm6f/releases/download/v1.6_f03/asm6f_v03_20250127.zip",
+  "hash": "97564B6CB158A20B1AEAAC1F185DDF76313C0626E94920E09FAF6511C5D90739",
+  "bin": [["asm6f_64.exe", "asm6f"]]
+}
+
