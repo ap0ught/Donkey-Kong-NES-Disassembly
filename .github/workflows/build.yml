@@ -1,105 +1,109 @@
+---
 name: Build ROMs
 
-on:
+"on":
   push:
-    branches: [ master, main ]
+    branches: [master, main]
     tags:
       - 'v*'
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Install asm6
-      run: |
-        git clone https://github.com/freem/asm6f.git
-        cd asm6f
-        make
-        sudo make install
-        cd ..
-        rm -rf asm6f
-        
-    - name: Verify asm6 installation
-      run: asm6 || true
-      
-    - name: Build US Version
-      run: |
-        sed -i 's/Version = .*/Version = US/' DonkeyKongDisassembly.asm
-        asm6 DonkeyKongDisassembly.asm DonkeyKong_US.nes || echo "Build requires graphics data"
-        
-    - name: Build JP Version
-      run: |
-        sed -i 's/Version = .*/Version = JP/' DonkeyKongDisassembly.asm
-        asm6 DonkeyKongDisassembly.asm DonkeyKong_JP.nes || echo "Build requires graphics data"
-        
-    - name: Build Gamecube Version
-      run: |
-        sed -i 's/Version = .*/Version = Gamecube/' DonkeyKongDisassembly.asm
-        asm6 DonkeyKongDisassembly.asm DonkeyKong_Gamecube.nes || echo "Build requires graphics data"
-        
-    - name: Upload US Build
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: DonkeyKong_US
-        path: DonkeyKong_US.nes
-        if-no-files-found: warn
-        
-    - name: Upload JP Build
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: DonkeyKong_JP
-        path: DonkeyKong_JP.nes
-        if-no-files-found: warn
-        
-    - name: Upload Gamecube Build
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: DonkeyKong_Gamecube
-        path: DonkeyKong_Gamecube.nes
-        if-no-files-found: warn
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install asm6
+        run: |
+          git clone https://github.com/freem/asm6f.git
+          cd asm6f
+          make
+          sudo make install
+          cd ..
+          rm -rf asm6f
+
+      - name: Verify asm6 installation
+        run: asm6 || true
+
+      - name: Build US Version
+        run: |
+          sed -i 's/Version = .*/Version = US/' DonkeyKongDisassembly.asm
+          asm6 DonkeyKongDisassembly.asm DonkeyKong_US.nes || \
+            echo "Build requires graphics data"
+
+      - name: Build JP Version
+        run: |
+          sed -i 's/Version = .*/Version = JP/' DonkeyKongDisassembly.asm
+          asm6 DonkeyKongDisassembly.asm DonkeyKong_JP.nes || \
+            echo "Build requires graphics data"
+
+      - name: Build Gamecube Version
+        run: |
+          sed -i 's/Version = .*/Version = Gamecube/' DonkeyKongDisassembly.asm
+          asm6 DonkeyKongDisassembly.asm DonkeyKong_Gamecube.nes || \
+            echo "Build requires graphics data"
+
+      - name: Upload US Build
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DonkeyKong_US
+          path: DonkeyKong_US.nes
+          if-no-files-found: warn
+
+      - name: Upload JP Build
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DonkeyKong_JP
+          path: DonkeyKong_JP.nes
+          if-no-files-found: warn
+
+      - name: Upload Gamecube Build
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DonkeyKong_Gamecube
+          path: DonkeyKong_Gamecube.nes
+          if-no-files-found: warn
 
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: ./artifacts
-        
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          artifacts/DonkeyKong_US/DonkeyKong_US.nes
-          artifacts/DonkeyKong_JP/DonkeyKong_JP.nes
-          artifacts/DonkeyKong_Gamecube/DonkeyKong_Gamecube.nes
-        body: |
-          Donkey Kong NES Disassembly Release
-          
-          This release includes three versions:
-          - DonkeyKong_US.nes - US/International (Revision 1)
-          - DonkeyKong_JP.nes - Japanese (Revision 0)
-          - DonkeyKong_Gamecube.nes - Gamecube/Animal Crossing version
-          
-          **Note:** These ROMs require graphics data to be extracted separately.
-          See README.md for instructions.
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/DonkeyKong_US/DonkeyKong_US.nes
+            artifacts/DonkeyKong_JP/DonkeyKong_JP.nes
+            artifacts/DonkeyKong_Gamecube/DonkeyKong_Gamecube.nes
+          body: |
+            Donkey Kong NES Disassembly Release
+
+            This release includes three versions:
+            - DonkeyKong_US.nes - US/International (Revision 1)
+            - DonkeyKong_JP.nes - Japanese (Revision 0)
+            - DonkeyKong_Gamecube.nes - Gamecube/Animal Crossing version
+
+            **Note:** These ROMs require graphics data to be
+            extracted separately. See README.md for instructions.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
