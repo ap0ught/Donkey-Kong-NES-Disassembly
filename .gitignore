@@ -1,0 +1,26 @@
+# Build artifacts
+*.nes
+*.bin
+*.o
+*.lst
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Extracted graphics
+misc/*.bin
+
+# Editor files
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak

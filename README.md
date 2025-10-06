@@ -1,4 +1,60 @@
-# Donkey-Kong-NES-Disassembly
-This is a disassembly of Donkey Kong for the NES and it's different revisions - Rev 0 (Japenese), Rev 1 (International) and Gamecube. It's fully disassembled but it's not fully documented. 
+# Donkey Kong NES Disassembly
 
-Doesn't include graphics data. You must rip it yourself (or use a python script in "misc" folder). Assembles with "asm6" assembler.
+A complete disassembly of Donkey Kong for the NES, covering three different versions:
+- **Rev 0** (Japanese release)
+- **Rev 1** (International/US release)
+- **Gamecube** (from Animal Crossing)
+
+This disassembly is fully complete but documentation is still in progress.
+
+## Quick Start
+
+### Prerequisites
+- [asm6 assembler](https://github.com/freem/asm6f)
+- Python 3.x (for graphics extraction)
+- Original Donkey Kong ROM file (for graphics extraction)
+
+### Building
+
+1. Extract graphics from your ROM:
+   ```bash
+   cd misc
+   python ExtractGFX.py
+   ```
+
+2. Assemble the ROM:
+   ```bash
+   asm6 DonkeyKongDisassembly.asm DonkeyKong.nes
+   ```
+
+3. To build different versions, edit `DonkeyKongDisassembly.asm` and change the `Version` constant:
+   ```assembly
+   Version = US        ; Options: JP, US, Gamecube (or 0, 1, 2)
+   ```
+
+## Features
+
+- Fully disassembled code for all three versions
+- Detailed labels and comments
+- Version-specific differences documented
+- Support for all game phases (25M, 50M, 75M, 100M)
+
+## Documentation
+
+- See [README.dev](README.dev) for development documentation
+- See [Notes.txt](Notes.txt) for labeling conventions and terminology
+
+## Graphics Data
+
+This disassembly does **not** include graphics data due to copyright restrictions. You must:
+1. Obtain a legal copy of the original ROM
+2. Use the Python script in the `misc` folder to extract graphics
+3. The script will create `.bin` files for use with the disassembly
+
+## Credits
+
+Disassembled by RussianManSMWC
+
+## License
+
+This is a disassembly for educational and preservation purposes. The original game is © Nintendo.
