@@ -23,7 +23,7 @@ jobs:
           git clone https://github.com/freem/asm6f.git
           cd asm6f
           make
-          sudo make install
+          sudo cp asm6f /usr/local/bin/asm6
           cd ..
           rm -rf asm6f
 
