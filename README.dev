@@ -1,0 +1,193 @@
+# Developer Documentation
+
+This document provides technical information for developers working with the Donkey Kong NES disassembly.
+
+## Project Structure
+
+```
+.
+├── DonkeyKongDisassembly.asm  # Main assembly file
+├── Defines.asm                 # Constants and memory addresses
+├── iNES_Header.asm            # NES ROM header definitions
+├── JPRemap.asm                # Macros for JP/US version differences
+├── Notes.txt                  # Label conventions and terminology
+└── misc/
+    ├── ExtractGFX.py          # Graphics extraction script
+    └── README.md              # Graphics extraction instructions
+```
+
+## Building the ROM
+
+### Requirements
+
+1. **asm6 Assembler**: Download from [freem's asm6f fork](https://github.com/freem/asm6f)
+   ```bash
+   # On Linux/macOS, compile and install:
+   git clone https://github.com/freem/asm6f.git
+   cd asm6f
+   make
+   sudo make install
+   ```
+
+2. **Graphics Data**: Extract from a legal ROM copy using the Python script
+
+### Build Process
+
+The build process consists of two main steps:
+
+#### 1. Extract Graphics (One-time setup)
+```bash
+cd misc
+# Place your original Donkey Kong ROM in this directory
+python ExtractGFX.py
+# This creates .bin files with graphics data
+```
+
+#### 2. Assemble the ROM
+```bash
+# From the root directory
+asm6 DonkeyKongDisassembly.asm output.nes
+```
+
+### Building Different Versions
+
+To build different versions, modify the `Version` constant in `DonkeyKongDisassembly.asm` (line 18):
+
+```assembly
+Version = US        ; For US/International version
+Version = JP        ; For Japanese version
+Version = Gamecube  ; For Gamecube/Animal Crossing version
+
+; Or use numeric values:
+Version = 0         ; JP
+Version = 1         ; US
+Version = 2         ; Gamecube
+```
+
+Then reassemble with asm6.
+
+## Code Organization
+
+### Label Format
+
+Labels follow this convention: `VERSION_TAG/NAME_ADDRESS`
+
+Example: `JP_LOOP_C000`
+
+### Tags
+- **CODE** - Marks a block of code
+- **DATA** - Marks a block of data
+- **UNUSED** - Marks unused code or data
+- **LOOP** - Marks instructions executed multiple times
+- **RETURN** - Marks a return from routine
+
+### Version-Specific Labels
+- Default labels refer to Revision 1 (US version)
+- **JP** - Revision 0 (Japan only)
+- **Gamecube** - Gamecube version only
+
+### Terminology
+- **Sprite Tiles** - OAM tiles
+- **Sprite** - An object using sprite tiles (Note: Donkey Kong himself uses background tiles, except in the ending cutscene)
+- **Square (sound)** - Pulse wave
+- **Jumpman** - The player character (later known as Mario)
+
+## Memory Map
+
+Key memory addresses are defined in `Defines.asm`:
+
+### Controller Input
+- `$14` - Player 1 controller input
+- `$15` - Player 1 previous input
+- `$16` - Player 2 controller input
+- `$17` - Player 2 previous input
+
+### Game State
+- `$18-$1F` - RNG values
+- `$20` - Score invert operand flag
+- `$21-$23` - Score display (top)
+
+### Display
+- `$12` - Camera X position
+- `$13` - Camera Y position
+- `$20B5` - VRAM Lives count location
+- `$20BC` - VRAM Loop count location
+
+See `Defines.asm` for complete memory map documentation.
+
+## Version Differences
+
+The three versions have subtle differences:
+
+### Japanese (Rev 0) vs US (Rev 1)
+- Different transition timings
+- Slightly different code organization
+- Some optimizations in US version
+
+### Gamecube Version
+- Expanded ROM space (starts at $8000 instead of $C000)
+- Modified RNG behavior
+- Some NOPs added for timing
+
+These differences are handled via the `JPRemap.asm` macro system and conditional assembly.
+
+## Graphics Format
+
+Graphics data is stored in separate `.bin` files:
+- Character (CHR) ROM data
+- Sprite patterns
+- Background tiles
+
+The Python extraction script handles converting the ROM's graphics banks into the format expected by the disassembly.
+
+## Testing Changes
+
+After making changes:
+
+1. Assemble the ROM for all three versions:
+   ```bash
+   # Test US version
+   sed -i 's/Version = .*/Version = US/' DonkeyKongDisassembly.asm
+   asm6 DonkeyKongDisassembly.asm DK_US.nes
+   
+   # Test JP version
+   sed -i 's/Version = .*/Version = JP/' DonkeyKongDisassembly.asm
+   asm6 DonkeyKongDisassembly.asm DK_JP.nes
+   
+   # Test Gamecube version
+   sed -i 's/Version = .*/Version = Gamecube/' DonkeyKongDisassembly.asm
+   asm6 DonkeyKongDisassembly.asm DK_GC.nes
+   ```
+
+2. Test in an emulator (e.g., Mesen, FCEUX, Nestopia)
+
+3. Compare checksums with original ROMs to verify accuracy
+
+## Contributing
+
+When contributing:
+
+1. Follow the existing label format and conventions
+2. Add comments for any new code
+3. Test all three versions
+4. Document version-specific differences
+5. Update this document if adding new build steps or dependencies
+
+## CI/CD
+
+GitHub Actions automatically builds all three versions on each push:
+- Artifacts are available for download from the Actions tab
+- Release builds are tagged with version numbers
+- All three ROM versions are included in releases
+
+## Known Issues
+
+- Some code sections are not fully documented
+- Graphics data must be extracted separately due to copyright
+- Address consistency between versions requires manual tracking
+
+## Resources
+
+- [NESdev Wiki](https://wiki.nesdev.com/) - NES hardware documentation
+- [6502 Reference](http://www.6502.org/tutorials/) - CPU instruction set
+- [asm6 Documentation](https://github.com/freem/asm6f) - Assembler reference
